@@ -1,0 +1,53 @@
+logging:
+  level:
+    root: INFO
+    gov.nist: WARN
+
+# 注意：不要开启 server.forward-headers-strategy=native。
+# Tomcat RemoteIpValve 默认 internalProxies 信任全部私网段(10/8、172.16/12、192.168/16、127/8),
+# 会在应用代码之前改写 remoteAddr/XFF——VPN/内网来源(如 10.x)会被当作可信代理跳过,
+# 客户端伪造的 XFF 段反而被采信, 绕过 ClientIpResolver 的显式 trusted-proxies 校验。
+# 客户端 IP 解析的唯一权威 = ClientIpResolver + vision.security.trusted-proxies（docs/10 §1）。
+
+vision:
+  # 服务端抓图（M3-B7 阶段2）: 图片落盘目录需环境变量覆盖——VISION_SNAPSHOT_DIR=/opt/vision/data/snapshot
+  # （部署时先 mkdir -p, 见 deploy/README.md §5）; 其余 vision.snapshot.* 用 base yaml 默认值即可
+  sip:
+    # SIP 宣告地址（可选）: 容器/NAT 部署必配=宿主对外 IP——host=0.0.0.0 监听时 Via/Contact
+    # 兜底取本机 IP(容器里是内网地址, 设备按 Via 回包即断); 单机裸跑留空=历史行为。
+    # 单机 systemd 部署(242 形态)无需配置; docker compose 形态见 deploy/compose/
+    public-ip: ${VISION_SIP_PUBLIC_IP:}
+    stacks:
+      # 国标 SIP 监听栈列表。语义:
+      #   - 一条 = 一个监听(协议+端口), 配几条支持几种传输, 无默认值——空列表 = SIP 完全不监听
+      #     (prod 曾因缺此配置出现"服务正常但 5060 不监听"的阻断缺陷, 症状仅一行"运行栈数: 0")
+      #   - main(UDP) + main-tcp(TCP): UDP/TCP 设备均可注册, 外呼按 gb_device.transport 选对应栈
+      #   - 只配一条: 只支持该协议, 另一种传输的设备注册不上
+      # 约束:
+      #   - main 是平台默认栈(gb_platform.stack_id 引用): 设备协议栈未启用时外呼回退到它,
+      #     故 main 建议始终保留且不可改名
+      #   - stack-id 全局唯一(jain-sip 栈名); UDP/TCP 同端口跨协议不冲突
+      - stack-id: main
+        host: 0.0.0.0
+        port: 5060
+        transport: UDP
+      - stack-id: main-tcp
+        host: 0.0.0.0
+        port: 5060
+        transport: TCP
+
+# 生产环境敏感配置全部走环境变量/密钥管理（docs/10 §1 安全基线），ProdSecretGuard 强校验：
+#   MYSQL_USERNAME / MYSQL_PASSWORD   数据库账号（base 缺省 root/root 不可用）
+#   REDIS_DB                          Redis 逻辑库号（Lettuce 与 Redisson 一致）
+#   SPRING_DATA_REDIS_PASSWORD        Redis 密码（无密码不设；勿用 REDIS_PASSWORD，空串会触发空 AUTH）
+#   VISION_JWT_SECRET                 JWT 签名密钥（>=32 字符；换值=全量会话失效）
+#   VISION_AES_KEY                    设备密码/节点 secret 的 AES 密钥（>=32 字符；
+#                                     复用含存量密文的库必须先用密钥轮换工具迁移）
+#   VISION_AES_OLD_KEY                仅密钥轮换窗口临时设置（可选, 平时不配）：
+#                                     设为换下的旧密钥, 启动扫描自动把存量旧密文迁移到
+#                                     VISION_AES_KEY, 日志核对"轮换 X 条(失败跳过 0)"后移除
+#   VISION_SM4_KEY                    开放接口 app_secret 的 SM4 主密钥（>=16 字符, docs/15 D3）；
+#                                     仅 VISION_OPENAPI_ENABLED=true 时强制校验, 未启用可不配
+#   VISION_OPENAPI_ENABLED            开放接口总开关（默认 false；启用前必须先配 VISION_SM4_KEY）
+#   LOG_DIR                           日志目录（logback ${log.dir:-./logs}）
+#   SPRING_PROFILES_ACTIVE=prod

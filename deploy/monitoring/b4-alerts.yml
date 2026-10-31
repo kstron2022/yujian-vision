@@ -1,0 +1,109 @@
+# ============================================================================
+# B4 平台告警规则（PromQL，组名 b4-platform-alerts）
+# ----------------------------------------------------------------------------
+# 指标名与平台侧 VisionMetrics/NodeMetricsTask 定稿一致，勿改名：
+#   vision_session_active{state}            当前活跃会话数（按会话状态）
+#   vision_device_online / vision_device_total  设备在线/注册总数
+#   vision_node_status{server}              节点服务可用（1=正常 0=异常）
+#   vision_node_zlm_reachable{server}       ZLM API 可达（1=可达 0=不可达）
+#   vision_node_streams{server}             节点当前流数
+#   vision_node_stream_capacity{server}     节点流容量（RTP 端口段折算）
+#   vision_node_viewers{server}             节点观看者总数
+#   vision_node_bandwidth_bytes{server}     节点出带宽（B/s）
+#   vision_node_ssrc_allocated{server}      节点 SSRC 占用数
+#   vision_hook_total{event}                ZLM Hook 累计（按事件）
+#   vision_invite_total{result}             INVITE 累计（按结果）
+#   vision_login_total{result}              登录累计（按结果）
+#
+# description 会被站内消息中心直接展示（Alertmanager webhook -> 平台
+# /api/alerts/webhook），所以必须中文 + 带模板值，不要写英文术语堆砌。
+# 阈值依据：按 RTP 端口段容量与带宽预估设定。
+# ============================================================================
+
+groups:
+  - name: b4-platform-alerts
+    rules:
+      # ---- 存活类 ------------------------------------------------------------
+      - alert: PlatformDown
+        expr: up{job="vision-platform"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "平台服务失联"
+          description: "Prometheus 抓取平台指标失败已持续 1 分钟（up={{ $value }}，实例 {{ $labels.instance }}）。平台进程可能宕机/端口 8082 不可达，监控与站内告警链路同时中断，请立即检查宿主机 systemctl status vision-platform。"
+
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "主机指标采集中断"
+          description: "node-exporter（{{ $labels.instance }}）抓取失败已持续 5 分钟（up={{ $value }}），宿主机 CPU/内存/磁盘/网络指标缺失，平台本身不受影响。"
+
+      # ---- ZLM 节点类 --------------------------------------------------------
+      - alert: ZlmNodeUnreachable
+        expr: vision_node_zlm_reachable == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ZLM 节点 API 不可达"
+          description: "节点 {{ $labels.server }} 的 ZLM HTTP API 探测失败已持续 1 分钟（reachable={{ $value }}）。点播/回放/收流都会失败，请检查 ZLM 容器与网络连通性。"
+
+      - alert: ZlmNodeOffline
+        expr: vision_node_status == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ZLM 节点离线"
+          description: "节点 {{ $labels.server }} 状态判定为离线已持续 2 分钟（status={{ $value }}），该节点上的会话不可用，请尽快介入。"
+
+      # ---- 容量类（RTP 端口段/并发流） ---------------------------------------
+      - alert: PortCapacityWarn
+        expr: vision_node_streams / vision_node_stream_capacity > 0.8 and on(server) vision_node_status == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "节点流容量超过 80%"
+          description: "节点 {{ $labels.server }} 当前流数/容量 = {{ $value | humanizePercentage }}，已超 80% 持续 2 分钟，接近 RTP 端口段上限，新点播可能失败。"
+
+      - alert: PortCapacityCrit
+        expr: vision_node_streams / vision_node_stream_capacity > 0.95 and on(server) vision_node_status == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "节点流容量超过 95%"
+          description: "节点 {{ $labels.server }} 当前流数/容量 = {{ $value | humanizePercentage }}，已超 95% 持续 2 分钟，即将耗尽，请立即扩容或下线闲置流。"
+
+      # ---- 平台运行时 --------------------------------------------------------
+      - alert: JvmHeapHigh
+        expr: sum by(instance)(jvm_memory_used_bytes{area="heap"}) / clamp_min(sum by(instance)(jvm_memory_max_bytes{area="heap"} > 0), 1) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 堆内存超过 85%"
+          description: "平台 JVM 堆使用率 = {{ $value | humanizePercentage }}（{{ $labels.id }}），持续 10 分钟未回落，存在 FullGC/OOM 风险，请结合 Grafana 平台总览页排查。"
+
+      - alert: Http5xxRateHigh
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 1e-9) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP 5xx 占比超过 10%"
+          description: "近 5 分钟平台 HTTP 5xx 响应占比 = {{ $value | humanizePercentage }}，持续 10 分钟，服务端异常偏多，请查平台日志。"
+
+      # ---- 安全类 ------------------------------------------------------------
+      - alert: LoginFailSpike
+        expr: increase(vision_login_total{result="fail"}[10m]) > 50
+        labels:
+          severity: warning
+        annotations:
+          summary: "10 分钟登录失败超过 50 次"
+          description: "近 10 分钟平台登录失败 {{ $value }} 次，疑似暴力破解/密码扫描，请到登录日志页核对来源 IP。"

@@ -1,0 +1,17 @@
+YuJianVision 视频监控平台
+Copyright 2026 YuJianVision contributors
+
+本产品包含第三方开源组件，各组件的许可证与版权声明归其各自所有者所有。
+主要依赖及其许可证：
+
+- Spring Boot / Spring Framework — Apache License 2.0
+- MyBatis-Plus — Apache License 2.0
+- Redisson — Apache License 2.0
+- jain-sip-ri — Apache License 2.0 (RestComm 维护分支)
+- Bouncy Castle (bcprov) — Bouncy Castle License (MIT 风格)
+- JJWT — Apache License 2.0
+- OkHttp — Apache License 2.0
+- Vue 3 / Arco Design Vue / Vite — MIT License
+- ZLMediaKit — MIT License（作为独立容器部署，不随本仓库分发源码）
+
+完整依赖清单见各模块构建文件（pom.xml / package.json）。

@@ -1,0 +1,95 @@
+services:
+  # MySQL 使用宿主机本机实例（Win64 MySQL 8.4.4），不在容器内部署，避免 3306 冲突
+  # 本机需手工建库: CREATE DATABASE vision_platform DEFAULT CHARACTER SET utf8mb4;
+  # 表结构由应用启动时 Flyway 自动执行 V1__init.sql 创建
+
+  redis:
+    image: redis:7-alpine
+    container_name: vision-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "redis123"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+
+  zlm:
+    image: zlmediakit/zlmediakit:master
+    container_name: vision-zlm
+    restart: unless-stopped
+    ports:
+      - "8081:80"            # ZLM HTTP API / HTTP-FLV / TS / HLS
+      - "8443:443"
+      - "554:554"            # RTSP
+      - "1935:1935"          # RTMP
+      - "8000:8000/udp"      # WebRTC
+      - "8000:8000/tcp"
+      - "30000-30100:30000-30100/tcp"   # RTP 收流（TCP 被动; 容器内 port_range 同段）
+      - "30000-30100:30000-30100/udp"   # RTP 收流（UDP 兜底）
+    volumes:
+      - ./data/zlm/conf:/opt/media/conf
+      - ./data/zlm/log:/opt/media/log
+      - ./data/zlm/www:/opt/media/www
+
+  # ============================================================================
+  # B4 监控告警 · 本地 dev 旁路（docs/09 M2 #8）
+  # 生产版本在 ../../deploy/monitoring/docker-compose.monitoring.yml（242 用），
+  # 本地差异：prometheus 抓本机平台(host.docker.internal:8080)、无 alerting/无规则文件；
+  # 配置与看板直接复用 deploy/monitoring/ 同一套（相对本目录 = ../../deploy/monitoring/...）。
+  #   Prometheus http://localhost:9091   Grafana http://localhost:3301（admin/admin123）
+  #   本地不起 alertmanager / node-exporter，看板里主机面板无数据属预期。
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:v2.53.3
+    container_name: vision-prometheus-dev
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    # Docker Desktop 自带 host.docker.internal；extra_hosts 兼容直接跑在 Linux/WSL 的引擎
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../../deploy/monitoring/prometheus-dev.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: vision-grafana-dev
+    restart: unless-stopped
+    ports:
+      - "3301:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      # dev 不 fail-fast：未设置环境变量时用弱默认值（生产 compose 用 ${VAR:?} 严格校验）
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+    volumes:
+      - ../../deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../../deploy/monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - ./data/grafana:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # ============================================================================
+  # M3-B6 阶段1: 第二 ZLM 节点（多节点调度/跨节点回源验证, docs/09 M3-B6）
+  # 与 zlm 同 compose 网络（跨节点回源走 http://zlm:80 服务名 DNS）。
+  # 本地注册参数: serverId=vision-zlm2 hostIp/publicIp=<WSL eth0 如 172.26.253.3> httpPort=8082
+  #              rtp 端口段 32000~32100（容器内 port_range 必须=宿主发布段, SDP 端口=宿主端口）
+  # dev 收流段缩到 101 端口: 全段逐端口发布=每端口一个 docker-proxy 进程, 501 端口×2 节点
+  # 在 WSL2 会顶到 fork 上限（EAGAIN）, 101 足够 sim/联调并发
+  # ============================================================================
+  zlm2:
+    image: zlmediakit/zlmediakit:master
+    container_name: vision-zlm2
+    restart: unless-stopped
+    ports:
+      - "8082:80"            # ZLM HTTP API（节点2 管理口）
+      - "8444:443"
+      - "18554:554"          # RTSP（8554 被本地联调环境占用）
+      - "21935:1935"         # RTMP（11935 被本地联调环境占用）
+      - "8800:8000/udp"      # WebRTC
+      - "8800:8000/tcp"
+      - "32000-32100:32000-32100/tcp"   # RTP 收流（容器内 rtp_proxy port_range 同段, SDP 端口=宿主端口）
+      - "32000-32100:32000-32100/udp"
+    volumes:
+      - ./data/zlm2/conf:/opt/media/conf
+      - ./data/zlm2/log:/opt/media/log
+      - ./data/zlm2/www:/opt/media/www

@@ -1,0 +1,20 @@
+# ============================================================================
+# 本地开发用 Prometheus 配置（被 vision-platform/docker/docker-compose-dev.yml 挂载）
+# 与生产 prometheus.yml 差异：
+#   - 平台目标 = Windows 宿主上的 Spring Boot dev 端口 8080（生产是 8082）
+#   - 无 alerting 段、无规则文件（本地不起 alertmanager，不评估告警）
+# 目标地址注意（2026-09-11 实录）：host.docker.internal（=WSL 网关 172.26.240.1）在
+# 深信服 VPN 连接时会被其零信任过滤驱动静默丢弃（Windows 防火墙规则也救不了），
+# 必须用 WLAN 网卡 IP——该 IP 随网络漂移，连不上时先 `ipconfig` 重查后同步改这里。
+# ============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: vision-platform
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - 192.168.43.4:8080

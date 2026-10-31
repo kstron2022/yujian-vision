@@ -1,0 +1,62 @@
+# --- Java / Maven ---
+target/
+*.class
+*.jar
+!mvnw
+!.mvn/wrapper/*.jar
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# --- Node / 前端 ---
+node_modules/
+dist/
+web-ui/.npmrc
+*.local
+
+# --- 运行时 ---
+logs/
+*.log
+.dump
+derby.log
+# 服务端抓图落盘（M3-B7 阶段2, dev 默认目录 ./data/snapshot, 图片不入库）
+**/data/snapshot/
+
+# --- 环境配置（含密钥，不入库） ---
+# 注意: 含中间斜杠的 pattern 会锚定到仓库根, 必须用 **/ 才能匹配任意层级
+.env
+application-secret.yaml
+**/docker/data/*
+!**/docker/data/zlm
+**/docker/data/zlm/*
+!**/docker/data/zlm/conf
+!**/docker/data/zlm2
+**/docker/data/zlm2/*
+!**/docker/data/zlm2/conf
+
+# --- Python ---
+__pycache__/
+*.pyc
+
+# --- 不纳入管理 ---
+other/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+# Arco Pro 参考模板（本地参考, 不入库）
+.tmp-arco-pro/
+*.tgz
+*.zip
+
+# --- 容器化部署包实例目录（模板在 deploy/compose/ 入库; 实例含密钥/构建产物不入库） ---
+deploy/deployment/
+
+# --- 发版产物（本地组装, 不入库） ---
+release/
+

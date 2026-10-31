@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    username: vision
+    password: vision123
+  data:
+    redis:
+      password: redis123
+
+logging:
+  level:
+    root: DEBUG
+    org.springframework.security: INFO
+    com.baomidou.mybatisplus: INFO
+    # SIP 栈底层日志较嘈杂，压到 WARN（jain-sip 经 slf4j 输出）
+    gov.nist: WARN
+
+vision:
+  # 跨节点回源源站 base(仅本地单机 compose): zlm2 容器经服务名 DNS 拉 zlm1 的签名 TS。
+  # 多主机/独立容器部署保持共享默认空=按源节点 hostIp:http_port(见 application.yaml)
+  media:
+    proxy-source-base: http://zlm:80
+  sip:
+    stacks:
+      - stack-id: main
+        host: 0.0.0.0
+        port: 5060
+        transport: UDP

@@ -1,0 +1,91 @@
+# ============================================================================
+# 监控告警旁路部署（可选）
+# ----------------------------------------------------------------------------
+# 四容器职责 / 暴露面（零暴露原则）：
+#   vision-prometheus    9090  【不映射宿主端口】仅 docker 内网可达，Grafana 经服务名访问
+#   vision-alertmanager  9093  【不映射宿主端口】仅 docker 内网可达，Prometheus 推告警到此
+#   vision-grafana       3000  -> 宿主 3300（宿主 3000 被占用时可改）
+#   vision-node-exporter 9100  -> 宿主 9100（采集宿主机 CPU/内存/磁盘/网络）
+#
+# 平台 jar 跑在宿主机 systemd（8082），不在本 compose 内；
+# 容器 -> 宿主机统一走 docker 默认桥网关 172.17.0.1（见 prometheus.yml / alertmanager.yml）。
+# 网络用 compose 默认网络（用户自定义 bridge），服务名/别名互通；
+# prometheus/alertmanager 为书写与配置统一加了短别名（prometheus/alertmanager）。
+#
+# 镜像 tag 已定稿，勿改：
+#   prom/prometheus:v2.53.3 / prom/alertmanager:v0.28.1 /
+#   prom/node-exporter:v1.8.2 / grafana/grafana:11.4.0
+#
+# 启动：GRAFANA_ADMIN_PASSWORD 必须由环境提供（fail-fast，缺失直接报错不启动）
+#   cd /opt/vision/monitoring
+#   set -a; source /opt/vision/vision.env; set +a   # 取 GRAFANA_ADMIN_PASSWORD
+#   docker compose -f docker-compose.monitoring.yml up -d
+# ============================================================================
+
+services:
+  vision-prometheus:
+    image: prom/prometheus:v2.53.3
+    container_name: vision-prometheus
+    restart: unless-stopped
+    # 无 ports：9090 零暴露，只能被 grafana/alertmanager 经内网访问
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./b4-alerts.yml:/etc/prometheus/b4-alerts.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      # 改规则后可免重启热加载（仅内网可达）：docker exec vision-prometheus wget -qO- http://localhost:9090/-/reload
+      - --web.enable-lifecycle
+    networks:
+      default:
+        aliases:
+          - prometheus
+
+  vision-alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: vision-alertmanager
+    restart: unless-stopped
+    # 无 ports：9093 零暴露
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      default:
+        aliases:
+          - alertmanager
+
+  vision-grafana:
+    image: grafana/grafana:11.4.0
+    container_name: vision-grafana
+    restart: unless-stopped
+    ports:
+      - "3300:3000"          # 宿主 3000 被占用时改用 3300
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      # ${VAR:?msg} = 未设置时 compose 直接报错退出（fail-fast），避免弱口令默认值
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?请在环境提供 GRAFANA_ADMIN_PASSWORD（写入 /opt/vision/vision.env 后 source 再 up）}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - ./grafana-data:/var/lib/grafana   # 首次启动前需 chown 472:472（见 README）
+    depends_on:
+      - vision-prometheus
+
+  vision-node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: vision-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+
+volumes:
+  prometheus-data:

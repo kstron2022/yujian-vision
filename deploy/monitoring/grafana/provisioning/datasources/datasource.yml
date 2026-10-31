@@ -1,0 +1,19 @@
+# ============================================================================
+# Grafana 数据源预配置（容器启动即生效，免手工添加）
+# url 用服务名 prometheus（compose 默认网络内 DNS，容器已加同名别名）
+# uid=prometheus：dashboards/*.json 里的 datasource 引用都指向这个 uid，勿改
+# ============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # 与 prometheus.yml 的 scrape_interval 对齐，避免 Grafana 步长比采集还细
+      timeInterval: 15s

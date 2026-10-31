@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yujian.vision</groupId>
+        <artifactId>vision-platform</artifactId>
+        <version>1.0.1</version>
+    </parent>
+    <artifactId>vision-onvif</artifactId>
+    <name>vision-onvif</name>
+    <description>ONVIF 协议适配：WS-UsernameToken 认证、轻量 SOAP 客户端、Device/Media 服务调用（docs/13 §3）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.yujian.vision</groupId>
+            <artifactId>vision-common</artifactId>
+        </dependency>
+        <!-- JDK HttpClient + DOM 解析，零第三方依赖（docs/13 §3.1 选型：手写轻量 SOAP，不引 CXF） -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

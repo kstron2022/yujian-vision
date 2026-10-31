@@ -1,0 +1,24 @@
+# M3-B6 阶段2 · vision 主备编排 keepalived 的常驻单元（不占用发行版 keepalived.service,
+# 后者用 /etc/keepalived/keepalived.conf——本机无该文件时发行版单元不会真正拉起, 但仍建议 disable）
+# 安装: /etc/systemd/system/keepalived-vision.service && systemctl daemon-reload && systemctl enable --now keepalived-vision
+[Unit]
+Description=Keepalived for Vision HA (M3-B6 phase2, notify orchestrator)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# VRRP 载体 dummy 口(keepalived 拒绝 lo; dummy 不出物理网段), 幂等创建;
+# keepalived 要求载体口有 IPv4——挂一个 link 区段占位地址(169.254/16 不参与路由), VIP 与此无关(在 lo);
+# dummy 内核驱动默认关多播, 必须显式打开否则实例永久 FAULT(no multicast → no way to advertise)
+ExecStartPre=-/sbin/ip link add vision-ha type dummy
+ExecStartPre=-/sbin/ip link set vision-ha up
+ExecStartPre=-/sbin/ip link set vision-ha multicast on
+ExecStartPre=-/sbin/ip addr replace 169.254.50.243/32 dev vision-ha
+# -n 前台运行交由 systemd 托管; 配置/通知脚本见 /etc/keepalived/keepalived-vision.conf 与 /opt/vision/ha/
+ExecStart=/usr/sbin/keepalived -n -f /etc/keepalived/keepalived-vision.conf
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

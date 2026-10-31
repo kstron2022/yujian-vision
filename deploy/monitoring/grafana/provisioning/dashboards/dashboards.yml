@@ -1,0 +1,19 @@
+# ============================================================================
+# Grafana 仪表盘 provider：扫描 /etc/grafana/dashboards（不能挂 /var/lib/grafana 子路径——会被数据卷整体遮蔽）
+# （compose 已把 ./grafana/dashboards 挂到该目录，新增 json 文件约 30s 内自动出现）
+# ============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: vision-dashboards
+    orgId: 1
+    folder: Vision 平台
+    folderUid: vision
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

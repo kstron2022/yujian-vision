@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yujian.vision</groupId>
+        <artifactId>vision-platform</artifactId>
+        <version>1.0.1</version>
+    </parent>
+    <artifactId>vision-service</artifactId>
+    <name>vision-service</name>
+    <description>业务域：设备/通道/点播/回放/PTZ/录像/级联/用户权限（MyBatis-Plus + Redis）</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.yujian.vision</groupId>
+            <artifactId>vision-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yujian.vision</groupId>
+            <artifactId>vision-sip</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yujian.vision</groupId>
+            <artifactId>vision-protocol-gb28181</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yujian.vision</groupId>
+            <artifactId>vision-onvif</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yujian.vision</groupId>
+            <artifactId>vision-media</artifactId>
+        </dependency>
+
+        <!-- 持久层：MyBatis-Plus（决策 D9），分页拦截器需 jsqlparser 适配包 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+        </dependency>
+
+        <!-- Redis / Redisson（SSRC 池、INVITE 事务、分布式锁、延迟队列） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- 监控指标（docs/09 M2 #8）：VisionMetrics/NodeMetricsTask 打点，registry 由 vision-web actuator 提供 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,79 @@
+# ============================================================================
+# Alertmanager 配置（B4 监控告警, M3-B4 阶段3 增 PlatformDown 带外兜底渠道）
+# ----------------------------------------------------------------------------
+# 站内渠道（常态）: 告警经 webhook 回平台
+#   http://172.17.0.1:8082/api/alerts/webhook（平台在宿主机 systemd, 8082）
+#   鉴权: 请求头 X-Vision-Alert-Token, 值必须与平台 vision.security.alert-webhook-token
+#   一致。⚠️ Alertmanager 的 yaml 不支持 ${ENV} 环境变量替换, 所以下面只能写占位符,
+#   部署时手工替换为 /opt/vision/vision.env 里 VISION_ALERTWEBHOOKTOKEN 的值
+#   （步骤见 ../README.md §部署步骤 3）。
+# 站内消息中心直接展示告警的 annotations.description（中文, 见 ../b4-alerts.yml）。
+# ----------------------------------------------------------------------------
+# 带外渠道（PlatformDown 专用兜底, M3-B4 阶段3）:
+#   PlatformDown = 平台进程失联, 此时站内 webhook 链路同断, 告警只发带外渠道触达值守。
+#   企微/钉钉/SMTP 任选其一启用, 其余保持注释（配置模板见 oob-out-of-band receiver,
+#   选择依据与部署步骤见 ../README.md §带外渠道）。与站内 token 同理, AM yaml 不支持
+#   ${ENV} 替换, 带外凭据占位符也需部署时 sed 替换。
+# ============================================================================
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: vision-webhook
+  # 按 告警名+节点 分组：同一节点的多条告警合并成一条站内消息，避免刷屏
+  group_by: ["alertname", "server"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    # ---- PlatformDown 带外兜底（M3-B4 阶段3）----
+    # 两条同级子路由先后匹配同一告警: 第一条 continue=true 让 PlatformDown 同时发带外+站内。
+    # 站内那条在平台宕机期间会持续投递失败, AM 按退避重试, 平台恢复后补投成功 → 带外通知
+    # "宕机了", 站内留痕 "宕过机", 两侧口径互补。其余告警(站内链路健在)不进子路由, 行为不变。
+    - matchers: [ 'alertname="PlatformDown"' ]
+      receiver: oob-out-of-band
+      continue: true
+    - matchers: [ 'alertname="PlatformDown"' ]
+      receiver: vision-webhook
+
+receivers:
+  - name: vision-webhook
+    webhook_configs:
+      - url: http://172.17.0.1:8082/api/alerts/webhook
+        # 恢复(Resolved)不发站内（平台侧 resolved 不落通知）, 恢复以 Grafana 面板为准
+        send_resolved: false
+        http_config:
+          http_headers:
+            X-Vision-Alert-Token:
+              values:
+                - CHANGE_ME_FILL_AT_DEPLOY   # 部署时替换，见文件头说明
+
+  # ---- 带外渠道 receiver（PlatformDown 兜底, 企微/钉钉/SMTP 任选其一启用）----
+  # ⚠️ 未启用带外渠道的站点: 注释掉下面整个 email_configs 块即可（receiver 保留为空壳,
+  # PlatformDown 届时仅走站内, 行为回退 B4 原状, 无报错副作用）。
+  - name: oob-out-of-band
+    # ── 方案 A SMTP 邮件（默认模板, 无需额外组件, 填 4 处 CHANGE_ME 即用）──────────
+    email_configs:
+      - smarthost: "smtp.example.com:587"         # CHANGE_ME: SMTP 服务器:端口（STARTTLS 用 587; 465 隐式 TLS AM 不支持）
+        from: "vision-alert@example.com"          # CHANGE_ME: 发件人（一般须与 SMTP 账号同域）
+        auth_username: "vision-alert@example.com" # CHANGE_ME: SMTP 账号
+        auth_password: "CHANGE_ME_SMTP_PASSWORD"  # CHANGE_ME: SMTP 密码/授权码（QQ/163 等为授权码）
+        to: ["ops@example.com"]                   # CHANGE_ME: 收件人列表（值守邮箱, 可多个）
+        require_tls: true
+        # 带外恢复通知有价值: 平台恢复时收到 RESOLVED 邮件闭环, 与站内 resolved 不落的口径不同
+        send_resolved: true
+    # ── 方案 B 企业微信应用消息（AM 原生 wechat_configs, 走企微应用 API 而非群机器人）──
+    # wechat_configs:
+    #   - api_secret: "CHANGE_ME_WECHAT_SECRET"   # 应用 secret
+    #   corp_id: "CHANGE_ME_CORP_ID"              # 企业 ID
+    #   agent_id: "CHANGE_ME_AGENT_ID"            # 应用 agentId（纯数字）
+    #   to_user: "@all"                           # 接收人（@all=该应用可见范围全员）
+    #   message_type: text
+    #   send_resolved: true
+    # ── 方案 C 钉钉群机器人 ────────────────────────────────────────────────────
+    # AM 原生报文与钉钉机器人格式不兼容, 需旁路一个转换器容器 prometheus-webhook-dingtalk,
+    # compose 片段与步骤见 ../README.md §带外渠道; 启用后本 receiver 换成:
+    # webhook_configs:
+    #   - url: http://dingtalk-webhook:8060/dingtalk/ops/send
+    #     send_resolved: true

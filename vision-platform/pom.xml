@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/>
+    </parent>
+    <groupId>com.yujian.vision</groupId>
+    <artifactId>vision-platform</artifactId>
+    <version>1.0.1</version>
+    <packaging>pom</packaging>
+    <name>vision-platform</name>
+    <description>YuJianVision 视频监控平台（GB28181）- 后端</description>
+
+    <modules>
+        <module>vision-common</module>
+        <module>vision-sip</module>
+        <module>vision-protocol-gb28181</module>
+        <module>vision-onvif</module>
+        <module>vision-media</module>
+        <module>vision-service</module>
+        <module>vision-web</module>
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+
+        <!-- API 文档：springdoc（与参考工程一致，Boot3 官方推荐） -->
+        <springdoc.version>2.8.17</springdoc.version>
+        <!-- 持久层：MyBatis-Plus（docs/02 设计方案），3.5.9+ 分页需配套 jsqlparser 适配包 -->
+        <mybatis-plus.version>3.5.12</mybatis-plus.version>
+        <!-- Redis 分布式能力（锁/延迟队列/限流），需与 Spring Boot 3.5 的 spring-data 版本兼容 -->
+        <redisson.version>3.45.1</redisson.version>
+        <!-- JWT -->
+        <jjwt.version>0.12.6</jjwt.version>
+        <!-- SIP 协议栈（社区维护分支，API 兼容 javax.sip，最新 1.3.0-91；docs/01 §5 决策 D5） -->
+        <jain-sip.version>1.3.0-91</jain-sip.version>
+        <!-- HTTP 客户端（与参考工程一致，用于 ZLM API 调用） -->
+        <okhttp.version>4.12.0</okhttp.version>
+        <!-- XML 编解码（MANSCDP 报文；版本与 Boot BOM 的 Jackson 主版本保持一致） -->
+        <jackson-dataformat-xml.version>2.19.0</jackson-dataformat-xml.version>
+        <!-- 国密算法（docs/15 步骤1）：SM3/SM4 实现, 仅用显式 "BC" provider 轻量 API, 不注册全局 provider -->
+        <bcprov.version>1.78.1</bcprov.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 内部模块 -->
+            <dependency>
+                <groupId>com.yujian.vision</groupId>
+                <artifactId>vision-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yujian.vision</groupId>
+                <artifactId>vision-sip</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yujian.vision</groupId>
+                <artifactId>vision-protocol-gb28181</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yujian.vision</groupId>
+                <artifactId>vision-onvif</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yujian.vision</groupId>
+                <artifactId>vision-media</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yujian.vision</groupId>
+                <artifactId>vision-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.redisson</groupId>
+                <artifactId>redisson-spring-boot-starter</artifactId>
+                <version>${redisson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.sip</groupId>
+                <artifactId>jain-sip-ri</artifactId>
+                <version>${jain-sip.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-xml</artifactId>
+                <version>${jackson-dataformat-xml.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bcprov.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <excludes>
+                            <exclude>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                            </exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

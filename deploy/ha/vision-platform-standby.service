@@ -1,0 +1,18 @@
+# M3-B6 阶段2 SIP 主备 · 备实例 B 的 systemd 单元（镜像 vision-platform.service）
+# 安装: /etc/systemd/system/vision-platform-standby.service && systemctl daemon-reload && systemctl enable --now vision-platform-standby
+[Unit]
+Description=Vision Platform (standby, M3-B6 phase2 HA)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/opt/vision/vision-standby.env
+ExecStartPre=-/sbin/ip addr add 10.0.0.243/32 dev lo
+ExecStart=/usr/bin/java -jar /opt/vision/vision-platform-standby.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

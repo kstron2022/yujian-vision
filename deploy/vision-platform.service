@@ -1,0 +1,17 @@
+[Unit]
+Description=YuJianVision GB28181 Platform
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/vision
+EnvironmentFile=/opt/vision/vision.env
+ExecStart=/usr/bin/java -jar /opt/vision/vision-platform.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

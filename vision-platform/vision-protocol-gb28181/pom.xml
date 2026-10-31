@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.yujian.vision</groupId>
+        <artifactId>vision-platform</artifactId>
+        <version>1.0.1</version>
+    </parent>
+    <artifactId>vision-protocol-gb28181</artifactId>
+    <name>vision-protocol-gb28181</name>
+    <description>GB28181 协议适配：MANSCDP XML 编解码、版本适配器 SPI（2016/2022）、SDP 构建</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.yujian.vision</groupId>
+            <artifactId>vision-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.yujian.vision</groupId>
+            <artifactId>vision-sip</artifactId>
+        </dependency>
+        <!-- MANSCDP XML 宽松解析（docs/01 §3.3：厂商字段差异容错） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

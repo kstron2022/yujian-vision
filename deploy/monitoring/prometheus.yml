@@ -1,0 +1,35 @@
+# ============================================================================
+# Prometheus 主配置（监控告警旁路）
+# 抓取对象都是宿主机侧服务（平台 jar=systemd 8082 / node-exporter=9100），
+# 容器内统一经 docker 默认桥网关 172.17.0.1 访问宿主机。
+# 规则文件 /etc/prometheus/b4-alerts.yml 与 alertmanager 均由 compose 挂载/内网互通。
+# ============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/b4-alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  # 平台应用指标（Spring Boot Actuator + Micrometer Prometheus）
+  # 平台绑定为具体地址而非 0.0.0.0 时(如 HA 形态), 网关 172.17.0.1 打不到平台——
+  # 目标须写平台实际绑定的宿主 IP; 该地址不可达时 target 断(指标缺口, 属预期)
+  - job_name: vision-platform
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - 10.0.0.242:8082
+
+  # 宿主机指标（node-exporter 容器映射 9100 -> 宿主 9100，经桥网关绕回）
+  - job_name: node-exporter
+    static_configs:
+      - targets:
+          - 172.17.0.1:9100
